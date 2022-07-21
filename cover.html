@@ -1,0 +1,481 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/ryhoh/loudprogress/loudprogress.go (47.8%)</option>
+				
+				<option value="file1">github.com/ryhoh/loudprogress/renderfunc.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package loudprogress
+
+import (
+        "fmt"
+        "io"
+        "os"
+        "strings"
+        "sync"
+        "time"
+)
+
+type RenderFunc func(size int64, writer io.Writer) (func(int64), func(int64)) // alias for rendering function
+
+type LoudProgress struct { // progress manager
+        size        int64         // total size of progress
+        current     int64         // current progress
+        render_func RenderFunc    // function for rendering
+        ch          chan int64    // channel for receive current number
+        writer      io.Writer     // writer for rendering (default: os.Stdout)
+        wait        time.Duration // duration between renderings
+        is_running  bool          // default: false
+        is_finished bool          // default: false
+}
+
+type LoudProgressStack struct {
+        lps         *[]*LoudProgress
+        mutex       sync.Mutex
+        is_runnable bool // default: true
+}
+
+// type PartialRenderingInfo struct {
+//         current           int64
+//         lines_from_bottom int
+// }
+
+// Generate new LoudProgress
+func NewLoudProgress(size int64, render_func RenderFunc) *LoudProgress <span class="cov8" title="1">{
+        res := new(LoudProgress)
+        res.current = 0
+        res.size = size
+        res.render_func = render_func
+        res.ch = make(chan int64, 20)
+        res.writer = os.Stdout
+        res.wait = 250 * time.Millisecond
+        res.is_running = false
+        res.is_finished = false
+        return res
+}</span>
+
+// Set writer
+func (lp *LoudProgress) SetWriter(writer io.Writer) <span class="cov8" title="1">{
+        lp.writer = writer
+}</span>
+
+// Set wait
+func (lp *LoudProgress) SetWait(wait time.Duration) error <span class="cov8" title="1">{
+        if wait &lt; time.Millisecond </span><span class="cov8" title="1">{
+                return fmt.Errorf("too small wait (needs at least 1 millisecond but given %v)", wait)
+        }</span>
+        <span class="cov8" title="1">lp.wait = wait
+        return nil</span>
+}
+
+// Set size
+func (lp *LoudProgress) ExpandSize(size int64) error <span class="cov8" title="1">{
+        // allow expand
+        if size &gt;= lp.size </span><span class="cov8" title="1">{
+                lp.size = size
+                return nil
+        }</span>
+        // deny shrink
+        <span class="cov8" title="1">return fmt.Errorf("shrinking size is prohibited (current size is %d and given %d)", lp.size, size)</span>
+}
+
+// Get wait
+func (lp *LoudProgress) GetWait() time.Duration <span class="cov8" title="1">{
+        return lp.wait
+}</span>
+
+// Get is_running
+func (lp *LoudProgress) IsRunning() bool <span class="cov8" title="1">{
+        return lp.is_running
+}</span>
+
+// Get is_finished
+func (lp *LoudProgress) IsFinished() bool <span class="cov8" title="1">{
+        return lp.is_finished
+}</span>
+
+// Start rendering progress
+func (lp *LoudProgress) Start() error <span class="cov8" title="1">{
+        if !lp.is_running </span><span class="cov8" title="1">{
+                go lp.render()
+                lp.is_running = true
+                return nil
+        }</span>
+        <span class="cov8" title="1">return fmt.Errorf("this LoudProgress can't runnable")</span>
+}
+
+// Method for increment current number
+// () -&gt; (lp.current, err)
+func (lp *LoudProgress) Increment() (int64, error) <span class="cov8" title="1">{
+        // can't increase current if already finished
+        if lp.current &gt;= lp.size </span><span class="cov8" title="1">{
+                return lp.current, fmt.Errorf("this progress already finished [%d/%d]", lp.current, lp.size)
+        }</span>
+
+        // increase if available
+        <span class="cov8" title="1">lp.current += 1
+        lp.ch &lt;- lp.current
+        return lp.current, nil</span>
+}
+
+// Function for rendering progress bar
+func (lp *LoudProgress) render() <span class="cov8" title="1">{
+        func_render_main, func_render_post := lp.render_func(lp.size, lp.writer)
+
+        /* render loop */
+        for </span><span class="cov8" title="1">{
+                for len(lp.ch) &gt; 0 </span><span class="cov8" title="1">{ // update progress if increased
+                        lp.current = &lt;-lp.ch
+                }</span>
+                <span class="cov8" title="1">if lp.current &gt;= lp.size </span><span class="cov8" title="1">{
+                        break</span>
+                }
+
+                <span class="cov8" title="1">func_render_main(lp.current)
+
+                /* wait for next render */
+                time.Sleep(lp.wait)</span>
+        }
+
+        <span class="cov8" title="1">func_render_post(lp.current)
+
+        // make finished
+        lp.is_finished = true
+        lp.is_running = false
+        fmt.Fprintf(lp.writer, "\n")</span>
+}
+
+// Generate new LoudProgressStack
+func NewLoudProgressStack(loudProgresses *[]*LoudProgress) *LoudProgressStack <span class="cov0" title="0">{
+        res := new(LoudProgressStack)
+        res.lps = loudProgresses
+        res.mutex = sync.Mutex{}
+        res.is_runnable = true
+        // for _, lp := range *(res.lps) {
+        //         lp.writer = os.Stdout
+        for i, _ := range *(res.lps) </span><span class="cov0" title="0">{
+                (*(*res).lps)[i].writer = os.Stdout
+                (*(*res).lps)[i].is_running = true // disable individual Start()
+        }</span>
+        <span class="cov0" title="0">return res</span>
+}
+
+// Set writer for rendering multiple progress bar
+func (lps *LoudProgressStack) SetWriter(writer io.Writer) <span class="cov0" title="0">{
+        for i, _ := range *(lps.lps) </span><span class="cov0" title="0">{
+                (*(*lps).lps)[i].writer = writer
+        }</span>
+}
+
+// Get is_finished for all LoudProgress
+func (lps *LoudProgressStack) IsFinished() bool <span class="cov0" title="0">{
+        finished := true
+        for _, lp := range *(lps.lps) </span><span class="cov0" title="0">{
+                if !lp.IsFinished() </span><span class="cov0" title="0">{
+                        finished = false
+                }</span>
+        }
+        <span class="cov0" title="0">return finished</span>
+}
+
+// Function for rendering multiple progress bar
+func (lps *LoudProgressStack) Start() error <span class="cov0" title="0">{
+        if lps.is_runnable </span><span class="cov0" title="0">{
+                fmt.Fprintf((*(*lps).lps)[0].writer, "%s", strings.Repeat("\n", len(*(*lps).lps)-1))
+                for i, lp := range *(lps.lps) </span><span class="cov0" title="0">{
+                        go lps.render_multi(lp, uint(len(*(lps.lps))-i-1))
+                }</span>
+                <span class="cov0" title="0">lps.is_runnable = false
+                return nil</span>
+        }
+        <span class="cov0" title="0">return fmt.Errorf("this LoudProgressStack can't runnable")</span>
+}
+
+// Function for rendering progress bar
+func (lps *LoudProgressStack) render_multi(lp *LoudProgress, lines_from_bottom uint) <span class="cov0" title="0">{
+        func_render_main, func_render_post := lp.render_func(lp.size, lp.writer)
+
+        /* render loop */
+        for </span><span class="cov0" title="0">{
+                for len(lp.ch) &gt; 0 </span><span class="cov0" title="0">{ // update progress if increased
+                        lp.current = &lt;-lp.ch
+                }</span>
+                <span class="cov0" title="0">if lp.current &gt;= lp.size </span><span class="cov0" title="0">{
+                        break</span>
+                }
+
+                // Lock and write
+                <span class="cov0" title="0">lps.mutex.Lock()
+                if lines_from_bottom &gt; 0 </span><span class="cov0" title="0">{ // not bottom line
+                        fmt.Fprintf(lp.writer, "\033[%dA", lines_from_bottom)
+                }</span>
+                <span class="cov0" title="0">func_render_main(lp.current)
+                if lines_from_bottom &gt; 0 </span><span class="cov0" title="0">{ // not bottom line
+                        fmt.Fprintf(lp.writer, "\033[%dB", lines_from_bottom)
+                }</span>
+                <span class="cov0" title="0">lps.mutex.Unlock()
+
+                /* wait for next render */
+                time.Sleep(lp.wait)</span>
+        }
+
+        // Lock and write
+        <span class="cov0" title="0">lps.mutex.Lock()
+        if lines_from_bottom &gt; 0 </span><span class="cov0" title="0">{ // not bottom line
+                fmt.Fprintf(lp.writer, "\033[%dA", lines_from_bottom)
+        }</span>
+        <span class="cov0" title="0">func_render_post(lp.current)
+        if lines_from_bottom &gt; 0 </span><span class="cov0" title="0">{ // not bottom line
+                fmt.Fprintf(lp.writer, "\033[%dB", lines_from_bottom)
+        }</span>
+        <span class="cov0" title="0">lps.mutex.Unlock()
+
+        // make finished
+        lps.mutex.Lock()
+        lp.is_finished = true
+        if lps.IsFinished() </span><span class="cov0" title="0">{
+                fmt.Fprintf(lp.writer, "\n")
+        }</span>
+        <span class="cov0" title="0">lps.mutex.Unlock()</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package loudprogress
+
+import (
+        "fmt"
+        "io"
+
+        color "github.com/fatih/color"
+)
+
+/* Progress bar functions */
+// (size) -&gt; (func_render_main, func_render_post)
+
+// Simple progress bar
+func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) <span class="cov8" title="1">{
+        const (
+                width_all = 40 // progress width on TUI
+                wave_span = 3  // wave char '&gt;' appears every wave_span progress charactors
+        )
+        var (
+                wave_pos int = 0 // [0, wave_span] wave char '&gt;' appears each `(i+wave_pos) mod wave_span == 0` position
+        )
+
+        return func(current int64) </span><span class="cov8" title="1">{
+                        /* culc length on TUI */
+                        width_done := int(current * int64(width_all) / size)
+
+                        /* progress animation */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_done; i++ </span><span class="cov8" title="1">{ // render done bar
+                                if (i+wave_pos)%wave_span == 0 </span><span class="cov8" title="1">{
+                                        fmt.Fprint(writer, "&gt;")
+                                }</span> else<span class="cov8" title="1"> {
+                                        fmt.Fprint(writer, "=")
+                                }</span>
+                        }
+                        <span class="cov8" title="1">if width_done != 0 </span><span class="cov8" title="1">{
+                                fmt.Fprint(writer, "&gt;") // right end must be "&gt;"
+                        }</span>
+                        <span class="cov8" title="1">for i := width_done + 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render untouched bar
+                                fmt.Fprint(writer, " ")
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size) // print current/size as number
+
+                        /* wait for next render */
+                        wave_pos--
+                        if wave_pos &lt; 0 </span><span class="cov8" title="1">{
+                                wave_pos += wave_span
+                        }</span>
+                },
+                func(current int64) <span class="cov8" title="1">{
+                        /* render finished progress */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render done bar
+                                fmt.Fprint(writer, "=")
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size)</span>
+                }
+}
+
+// Bold progress bar
+func Render_Bold(size int64, writer io.Writer) (func(int64), func(int64)) <span class="cov8" title="1">{
+        const (
+                width_all = 40 // progress width on TUI
+        )
+
+        return func(current int64) </span><span class="cov8" title="1">{
+                        /* culc length on TUI */
+                        width_done := int(current * int64(width_all) / size)
+
+                        /* progress animation */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_done+1; i++ </span><span class="cov8" title="1">{ // render done bar
+                                fmt.Fprint(writer, "█")
+                        }</span>
+                        <span class="cov8" title="1">for i := width_done + 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render untouched bar
+                                fmt.Fprint(writer, " ")
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size)</span> // print current/size as number
+                },
+                func(current int64) <span class="cov8" title="1">{
+                        /* render finished progress */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render done bar
+                                fmt.Fprint(writer, "█")
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size)</span>
+                }
+}
+
+// Bold rainbow progress bar
+func Render_BoldRainbow(size int64, writer io.Writer) (func(int64), func(int64)) <span class="cov8" title="1">{
+        const (
+                width_all            = 40                           // progress width on TUI
+                color_num            = 6                            // number of colors
+                color_band_width     = 4                            // width of band for each color
+                color_spector_length = color_band_width * color_num // length of color spector (means 1 rainbow cycle)
+        )
+        var (
+                color_func_table = [color_num]func(format string, a ...interface{}) string{ // color table for rainbow
+                        color.MagentaString,
+                        color.BlueString,
+                        color.CyanString,
+                        color.GreenString,
+                        color.YellowString,
+                        color.RedString,
+                }
+                head_pos int = 0 // [0, color_spector_length - 1] head position of rainbow
+        )
+
+        return func(current int64) </span><span class="cov8" title="1">{
+                        /* culc length on TUI */
+                        width_done := int(current * int64(width_all) / size)
+
+                        /* progress animation */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_done+1; i++ </span><span class="cov8" title="1">{ // render done bar
+                                color_index := ((head_pos + i - 1) % color_spector_length) / color_band_width
+                                color_func := color_func_table[color_index]
+                                fmt.Fprint(writer, color_func("█"))
+                        }</span>
+                        <span class="cov8" title="1">for i := width_done + 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render untouched bar
+                                fmt.Fprint(writer, " ")
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size) // print current/size as number
+
+                        /* wait for next render */
+                        head_pos--
+                        if head_pos &lt; 0 </span><span class="cov8" title="1">{
+                                head_pos += color_spector_length
+                        }</span>
+                },
+                func(current int64) <span class="cov8" title="1">{
+                        /* render finished progress */
+                        fmt.Fprint(writer, "\r[")
+                        for i := 1; i &lt; width_all+1; i++ </span><span class="cov8" title="1">{ // render done bar
+                                color_index := ((head_pos + i - 1) % color_spector_length) / color_band_width
+                                color_func := color_func_table[color_index]
+                                fmt.Fprint(writer, color_func("█"))
+                        }</span>
+                        <span class="cov8" title="1">fmt.Fprintf(writer, "] %d/%d", current, size)</span>
+                }
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

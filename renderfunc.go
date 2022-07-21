@@ -53,7 +53,7 @@ func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) {
 			for i := 1; i < width_all+1; i++ { // render done bar
 				fmt.Fprint(writer, "=")
 			}
-			fmt.Fprintf(writer, "] %d/%d\n", current, size)
+			fmt.Fprintf(writer, "] %d/%d", current, size)
 		}
 }
 
@@ -83,7 +83,7 @@ func Render_Bold(size int64, writer io.Writer) (func(int64), func(int64)) {
 			for i := 1; i < width_all+1; i++ { // render done bar
 				fmt.Fprint(writer, "█")
 			}
-			fmt.Fprintf(writer, "] %d/%d\n", current, size)
+			fmt.Fprintf(writer, "] %d/%d", current, size)
 		}
 }
 
@@ -137,6 +137,6 @@ func Render_BoldRainbow(size int64, writer io.Writer) (func(int64), func(int64))
 				color_func := color_func_table[color_index]
 				fmt.Fprint(writer, color_func("█"))
 			}
-			fmt.Fprintf(writer, "] %d/%d\n", current, size)
+			fmt.Fprintf(writer, "] %d/%d", current, size)
 		}
 }

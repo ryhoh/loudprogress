@@ -61,7 +61,7 @@ func TestRender_Simple(t *testing.T) {
 	// finalize
 	writer.Reset()
 	render_post_func(40)
-	expect = fmt.Sprintf("\r[%s] %d/%d\n", strings.Repeat("=", 40), 40, 40)
+	expect = fmt.Sprintf("\r[%s] %d/%d", strings.Repeat("=", 40), 40, 40)
 	actual = writer.String()
 	if actual != expect {
 		t.Errorf("expected\n%v\nbut given\n%v\n", expect, actual)
@@ -93,7 +93,7 @@ func TestRender_Bold(t *testing.T) {
 	// finalize
 	writer.Reset()
 	render_post_func(40)
-	expect = fmt.Sprintf("\r[%s] %d/%d\n", strings.Repeat("█", 40), 40, 40)
+	expect = fmt.Sprintf("\r[%s] %d/%d", strings.Repeat("█", 40), 40, 40)
 	actual = writer.String()
 	if actual != expect {
 		t.Errorf("expected\n%v\nbut given\n%v\n", expect, actual)
@@ -161,7 +161,7 @@ func TestRender_BoldRainbow(t *testing.T) {
 	// finalize
 	writer.Reset()
 	render_post_func(40)
-	expect = fmt.Sprintf("\r[%s] %d/%d\n",
+	expect = fmt.Sprintf("\r[%s] %d/%d",
 		strings.Repeat(color.YellowString("█"), 2)+strings.Repeat(color.RedString("█"), 4)+strings.Repeat(color.MagentaString("█"), 4)+
 			strings.Repeat(color.BlueString("█"), 4)+strings.Repeat(color.CyanString("█"), 4)+strings.Repeat(color.GreenString("█"), 4)+
 			strings.Repeat(color.YellowString("█"), 4)+strings.Repeat(color.RedString("█"), 4)+strings.Repeat(color.MagentaString("█"), 4)+

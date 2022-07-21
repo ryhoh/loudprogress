@@ -10,14 +10,21 @@ import (
 type RenderFunc func(size int64, writer io.Writer) (func(int64), func(int64)) // alias for rendering function
 
 type LoudProgress struct { // progress manager
-	size        int64      // total size of progress
-	current     int64      // current progress
-	render_func RenderFunc // function for rendering
-	ch          chan int64 // channel for receive current number
-	writer      io.Writer  // writer for rendering (default: os.Stdout)
+	size        int64         // total size of progress
+	current     int64         // current progress
+	render_func RenderFunc    // function for rendering
+	ch          chan int64    // channel for receive current number
+	writer      io.Writer     // writer for rendering (default: os.Stdout)
+	wait        time.Duration // duration between renderings
+	is_running  bool          // default: false
+	is_finished bool          // default: false
 }
 
-const WAIT = 250 * time.Millisecond
+type LoudProgressStack struct {
+	lps         *[]*LoudProgress
+	mutex       sync.Mutex
+	is_runnable bool // default: true
+}
 
 // Generate new LoudProgress
 func NewLoudProgress(size int64, render_func RenderFunc) *LoudProgress {
@@ -27,6 +34,9 @@ func NewLoudProgress(size int64, render_func RenderFunc) *LoudProgress {
 	res.render_func = render_func
 	res.ch = make(chan int64, 20)
 	res.writer = os.Stdout
+	res.wait = 250 * time.Millisecond
+	res.is_running = false
+	res.is_finished = false
 	return res
 }
 
@@ -35,10 +45,49 @@ func (lp *LoudProgress) SetWriter(writer io.Writer) {
 	lp.writer = writer
 }
 
+// Set wait
+func (lp *LoudProgress) SetWait(wait time.Duration) error {
+	if wait < time.Millisecond {
+		return fmt.Errorf("too small wait (needs at least 1 millisecond but given %v)", wait)
+	}
+	lp.wait = wait
+	return nil
+}
+
+// Set size
+func (lp *LoudProgress) ExpandSize(size int64) error {
+	// allow expand
+	if size >= lp.size {
+		lp.size = size
+		return nil
+	}
+	// deny shrink
+	return fmt.Errorf("shrinking size is prohibited (current size is %d and given %d)", lp.size, size)
+}
+
+// Get wait
+func (lp *LoudProgress) GetWait() time.Duration {
+	return lp.wait
+}
+
+// Get is_running
+func (lp *LoudProgress) IsRunning() bool {
+	return lp.is_running
+}
+
+// Get is_finished
+func (lp *LoudProgress) IsFinished() bool {
+	return lp.is_finished
+}
+
 // Start rendering progress
-func (lp *LoudProgress) Start() {
-	func_render_main, func_render_post := lp.render_func(lp.size, lp.writer)
-	go render(lp.current, lp.size, lp.ch, func_render_main, func_render_post)
+func (lp *LoudProgress) Start() error {
+	if !lp.is_running {
+		go lp.render()
+		lp.is_running = true
+		return nil
+	}
+	return fmt.Errorf("this LoudProgress can't runnable")
 }
 
 // Method for increment current number
@@ -56,19 +105,30 @@ func (lp *LoudProgress) Increment() (int64, error) {
 }
 
 // Function for rendering progress bar
-func render(current, size int64, ch chan int64, func_render_main, func_render_post func(int64)) {
+func (lp *LoudProgress) render() {
+	func_render_main, func_render_post := lp.render_func(lp.size, lp.writer)
+
 	/* render loop */
 	for {
-		if len(ch) > 0 { // update progress if increased
-			current = <-ch
+		for len(lp.ch) > 0 { // update progress if increased
+			lp.current = <-lp.ch
 		}
-		if current >= size {
+		if lp.current >= lp.size {
 			break
 		}
 
-		func_render_main(current)
+		func_render_main(lp.current)
+
 		/* wait for next render */
-		time.Sleep(WAIT)
+		time.Sleep(lp.wait)
+	}
+
+	func_render_post(lp.current)
+
+	// make finished
+	lp.is_finished = true
+	lp.is_running = false
+	fmt.Fprintf(lp.writer, "\n")
 	}
 	func_render_post(current)
 }
