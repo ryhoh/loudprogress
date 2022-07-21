@@ -20,12 +20,6 @@ type LoudProgress struct { // progress manager
 	is_finished bool          // default: false
 }
 
-type LoudProgressStack struct {
-	lps         *[]*LoudProgress
-	mutex       sync.Mutex
-	is_runnable bool // default: true
-}
-
 // Generate new LoudProgress
 func NewLoudProgress(size int64, render_func RenderFunc) *LoudProgress {
 	res := new(LoudProgress)
@@ -129,6 +123,4 @@ func (lp *LoudProgress) render() {
 	lp.is_finished = true
 	lp.is_running = false
 	fmt.Fprintf(lp.writer, "\n")
-	}
-	func_render_post(current)
 }
