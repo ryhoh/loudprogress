@@ -68,7 +68,7 @@ func TestIsFinished(t *testing.T) {
 }
 
 func TestExpandSize(t *testing.T) {
-	var size int64 = 3
+	var size uint64 = 3
 	lp := NewLoudProgress(2, nil)
 
 	// expand
@@ -93,10 +93,10 @@ func TestExpandSize(t *testing.T) {
 func TestStart(t *testing.T) {
 	stub_func_render_main_count := 0
 	stub_func_render_post_count := 0
-	stub_supplier_func := func(_ int64, _ io.Writer) (func(int64), func(int64)) {
-		return func(_ int64) {
+	stub_supplier_func := func(_ uint64, _ io.Writer) (func(uint64), func(uint64)) {
+		return func(_ uint64) {
 				stub_func_render_main_count++
-			}, func(_ int64) {
+			}, func(_ uint64) {
 				stub_func_render_post_count++
 			}
 	}
@@ -131,11 +131,11 @@ func TestRender(t *testing.T) {
 
 	stub_func_render_main_count := 0
 	stub_func_render_post_count := 0
-	stub_supplier_func := func(_ int64, _ io.Writer) (func(int64), func(int64)) {
-		return func(_ int64) {
+	stub_supplier_func := func(_ uint64, _ io.Writer) (func(uint64), func(uint64)) {
+		return func(_ uint64) {
 				stub_func_render_main_count++
 			},
-			func(_ int64) {
+			func(_ uint64) {
 				stub_func_render_post_count++
 			}
 	}

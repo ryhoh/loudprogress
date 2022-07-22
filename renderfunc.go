@@ -11,7 +11,7 @@ import (
 // (size) -> (func_render_main, func_render_post)
 
 // Simple progress bar
-func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) {
+func Render_Simple(size uint64, writer io.Writer) (func(uint64), func(uint64)) {
 	const (
 		width_all = 40 // progress width on TUI
 		wave_span = 3  // wave char '>' appears every wave_span progress charactors
@@ -20,9 +20,9 @@ func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) {
 		wave_pos int = 0 // [0, wave_span] wave char '>' appears each `(i+wave_pos) mod wave_span == 0` position
 	)
 
-	return func(current int64) {
+	return func(current uint64) {
 			/* culc length on TUI */
-			width_done := int(current * int64(width_all) / size)
+			width_done := int(current * uint64(width_all) / size)
 
 			/* progress animation */
 			fmt.Fprint(writer, "\r[")
@@ -47,7 +47,7 @@ func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) {
 				wave_pos += wave_span
 			}
 		},
-		func(current int64) {
+		func(current uint64) {
 			/* render finished progress */
 			fmt.Fprint(writer, "\r[")
 			for i := 1; i < width_all+1; i++ { // render done bar
@@ -58,14 +58,14 @@ func Render_Simple(size int64, writer io.Writer) (func(int64), func(int64)) {
 }
 
 // Bold progress bar
-func Render_Bold(size int64, writer io.Writer) (func(int64), func(int64)) {
+func Render_Bold(size uint64, writer io.Writer) (func(uint64), func(uint64)) {
 	const (
 		width_all = 40 // progress width on TUI
 	)
 
-	return func(current int64) {
+	return func(current uint64) {
 			/* culc length on TUI */
-			width_done := int(current * int64(width_all) / size)
+			width_done := int(current * uint64(width_all) / size)
 
 			/* progress animation */
 			fmt.Fprint(writer, "\r[")
@@ -77,7 +77,7 @@ func Render_Bold(size int64, writer io.Writer) (func(int64), func(int64)) {
 			}
 			fmt.Fprintf(writer, "] %d/%d", current, size) // print current/size as number
 		},
-		func(current int64) {
+		func(current uint64) {
 			/* render finished progress */
 			fmt.Fprint(writer, "\r[")
 			for i := 1; i < width_all+1; i++ { // render done bar
@@ -88,7 +88,7 @@ func Render_Bold(size int64, writer io.Writer) (func(int64), func(int64)) {
 }
 
 // Bold rainbow progress bar
-func Render_BoldRainbow(size int64, writer io.Writer) (func(int64), func(int64)) {
+func Render_BoldRainbow(size uint64, writer io.Writer) (func(uint64), func(uint64)) {
 	const (
 		width_all            = 40                           // progress width on TUI
 		color_num            = 6                            // number of colors
@@ -107,9 +107,9 @@ func Render_BoldRainbow(size int64, writer io.Writer) (func(int64), func(int64))
 		head_pos int = 0 // [0, color_spector_length - 1] head position of rainbow
 	)
 
-	return func(current int64) {
+	return func(current uint64) {
 			/* culc length on TUI */
-			width_done := int(current * int64(width_all) / size)
+			width_done := int(current * uint64(width_all) / size)
 
 			/* progress animation */
 			fmt.Fprint(writer, "\r[")
@@ -129,7 +129,7 @@ func Render_BoldRainbow(size int64, writer io.Writer) (func(int64), func(int64))
 				head_pos += color_spector_length
 			}
 		},
-		func(current int64) {
+		func(current uint64) {
 			/* render finished progress */
 			fmt.Fprint(writer, "\r[")
 			for i := 1; i < width_all+1; i++ { // render done bar

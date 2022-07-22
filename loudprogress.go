@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-type RenderFunc func(size int64, writer io.Writer) (func(int64), func(int64)) // alias for rendering function
+type RenderFunc func(size uint64, writer io.Writer) (func(uint64), func(uint64)) // alias for rendering function
 
 type LoudProgress struct { // progress manager
-	size        int64         // total size of progress
-	current     int64         // current progress
+	size        uint64        // total size of progress
+	current     uint64        // current progress
 	render_func RenderFunc    // function for rendering
-	ch          chan int64    // channel for receive current number
+	ch          chan uint64   // channel for receive current number
 	writer      io.Writer     // writer for rendering (default: os.Stdout)
 	wait        time.Duration // duration between renderings
 	is_running  bool          // default: false
@@ -21,12 +21,12 @@ type LoudProgress struct { // progress manager
 }
 
 // Generate new LoudProgress
-func NewLoudProgress(size int64, render_func RenderFunc) *LoudProgress {
+func NewLoudProgress(size uint64, render_func RenderFunc) *LoudProgress {
 	res := new(LoudProgress)
 	res.current = 0
 	res.size = size
 	res.render_func = render_func
-	res.ch = make(chan int64, 20)
+	res.ch = make(chan uint64, 20)
 	res.writer = os.Stdout
 	res.wait = 250 * time.Millisecond
 	res.is_running = false
@@ -49,7 +49,7 @@ func (lp *LoudProgress) SetWait(wait time.Duration) error {
 }
 
 // Set size
-func (lp *LoudProgress) ExpandSize(size int64) error {
+func (lp *LoudProgress) ExpandSize(size uint64) error {
 	// allow expand
 	if size >= lp.size {
 		lp.size = size
@@ -86,7 +86,7 @@ func (lp *LoudProgress) Start() error {
 
 // Method for increment current number
 // () -> (lp.current, err)
-func (lp *LoudProgress) Increment() (int64, error) {
+func (lp *LoudProgress) Increment() (uint64, error) {
 	// can't increase current if already finished
 	if lp.current >= lp.size {
 		return lp.current, fmt.Errorf("this progress already finished [%d/%d]", lp.current, lp.size)
