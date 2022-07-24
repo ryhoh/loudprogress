@@ -20,6 +20,11 @@ type LoudProgress struct { // progress manager
 	is_finished bool          // default: false
 }
 
+// type PartialRenderingInfo struct {
+// 	current           int64
+// 	lines_from_bottom int
+// }
+
 // Generate new LoudProgress
 func NewLoudProgress(size uint64, render_func RenderFunc) *LoudProgress {
 	res := new(LoudProgress)

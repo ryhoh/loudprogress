@@ -9,7 +9,7 @@ import (
 func main() {
 	size := 40
 	lp := loudprogress.NewLoudProgress( // make progress
-		int64(size),                // size of progress
+		uint64(size),               // size of progress
 		loudprogress.Render_Simple, // render function
 	)
 	lp.Start() // start
